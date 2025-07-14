@@ -91,8 +91,9 @@ def detect_objects_dinoground(image, text_prompt: str, plot_bbox: bool = True):
             cv2.putText(draw_image, label_text, (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         cv2.imwrite(filename='/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/detection.jpg', img=draw_image)
-        # cv2.imshow("DINO", draw_image)
-        # cv2.waitKey(0)
+        cv2.imshow("DINO", draw_image)
+        cv2.waitKey(1000)
+        cv2.destroyAllWindows()
     return valid_boxes, draw_image
 
 
@@ -239,7 +240,7 @@ def get_and_process_data(color_path, depth_path, mask_path,DEPTH_INTR,DEPTH_FACT
     """
     根据给定的 RGB 图、深度图、掩码图（可以是 文件路径 或 NumPy 数组），生成输入点云及其它必要数据
     """
-    NUM_POINT = 3000
+    NUM_POINT = 400
     # 1. 加载 color（可能是路径，也可能是数组）
     if isinstance(color_path, str):
         color = np.array(Image.open(color_path), dtype=np.float32) / 255.0
