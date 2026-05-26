@@ -6,11 +6,10 @@ from ultralytics.models.sam import Predictor as SAMPredictor
 import logging
 import sys
 import os
-ROOT_DIR =os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'dataset'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'models'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'utils'))
-sys.path.append(os.path.join(ROOT_DIR, 'manipulator_grasp'))
+from utils.path_setup import setup_graspnet_path
+from utils.config import load_config
+
+setup_graspnet_path()
 from data_utils import CameraInfo, create_point_cloud_from_depth_image
 from collision_detector import ModelFreeCollisionDetector
 from graspnetAPI import GraspGroup
@@ -19,9 +18,13 @@ import open3d as o3d
 logging.getLogger("ultralytics").setLevel(logging.WARNING)
 from groundingdino.util.inference import Model
 from PIL import Image
+
 # -------------------- 模型加载 --------------------
-CONFIG_PATH = "/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/config/groundingdino_swint_ogc.py"
-DINO_CHECKPOINT = "/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/weights/groundingdino_swint_ogc.pth"
+_cv_cfg = load_config('cv.yaml')
+_weights_dir = os.environ.get('WEIGHTS_DIR', _cv_cfg.get('weights_dir', 'weights'))
+CONFIG_PATH = os.path.join(_weights_dir, 'groundingdino_swint_ogc.py')
+DINO_CHECKPOINT = os.path.join(_weights_dir, 'groundingdino_swint_ogc.pth')
+
 # 初始化Grounding DINO
 grounding_dino_model = Model(
     model_config_path=CONFIG_PATH,
@@ -45,7 +48,7 @@ grounding_dino_model = Model(
 
 def choose_model():
     """Initialize SAM predictor with proper parameters"""
-    model_weight = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/weights/sam_b.pt'
+    model_weight = os.path.join(_weights_dir, 'sam_b.pt')
     overrides = dict(
         task='segment',
         mode='predict',
@@ -90,7 +93,7 @@ def detect_objects_dinoground(image, text_prompt: str, plot_bbox: bool = True):
             label_text = f"{box['cls']}: {box['conf']:.2f}"
             cv2.putText(draw_image, label_text, (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.imwrite(filename='/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/detection.jpg', img=draw_image)
+        cv2.imwrite(filename='detection_visualization.jpg', img=draw_image)
         cv2.imshow("DINO", draw_image)
         cv2.waitKey(1000)
         cv2.destroyAllWindows()

@@ -14,109 +14,22 @@ import mujoco.viewer
 from scipy.optimize import least_squares
 from manipulator_grasp.env import piper_grasp_env
 import pinocchio as pin
-from PIL import Image
 
-import spatialmath as sm
-ROOT_DIR =os.path.dirname(os.path.abspath(__file__))
+from utils.path_setup import setup_graspnet_path
+from utils.config import load_config
+from utils.data_loader import get_and_process_data, build_sim_camera
+from utils.graspnet_runner import load_graspnet
 
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'models'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'dataset'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'utils'))
-sys.path.append(os.path.join(ROOT_DIR, 'manipulator_grasp'))
+setup_graspnet_path()
 from graspnet import GraspNet, pred_decode
-from graspnet_dataset import GraspNetDataset
 from collision_detector import ModelFreeCollisionDetector
-from data_utils import CameraInfo, create_point_cloud_from_depth_image
 from cv_process import segment_image
-
 from manipulator_grasp.arm.motion_planning import *
-# ================= 数据处理并生成输入 ====================
-def get_and_process_data(color_path, depth_path, mask_path):
-    """
-    根据给定的 RGB 图、深度图、掩码图（可以是 文件路径 或 NumPy 数组），生成输入点云及其它必要数据
-    """
-    # ---------------------------------------
-    # 1. 加载 color（可能是路径，也可能是数组）
-    if isinstance(color_path, str):
-        color = np.array(Image.open(color_path), dtype=np.float32) / 255.0
-    elif isinstance(color_path, np.ndarray):
-        color = color_path.astype(np.float32)
-        color /= 255.0
-    else:
-        raise TypeError("color_path 既不是字符串路径也不是 NumPy 数组！")
 
-    # 2. 加载 depth（可能是路径，也可能是数组）
-    if isinstance(depth_path, str):
-        depth_img = Image.open(depth_path)
-        depth = np.array(depth_img)
-    elif isinstance(depth_path, np.ndarray):
-        depth = depth_path
-    else:
-        raise TypeError("depth_path 既不是字符串路径也不是 NumPy 数组！")
-
-    # 3. 加载 mask（可能是路径，也可能是数组）
-    if isinstance(mask_path, str):
-        workspace_mask = np.array(Image.open(mask_path))
-    elif isinstance(mask_path, np.ndarray):
-        workspace_mask = mask_path
-    else:
-        raise TypeError("mask_path 既不是字符串路径也不是 NumPy 数组！")
-
-    # print("\n=== 尺寸验证 ===")
-    # print("深度图尺寸:", depth.shape)
-    # print("颜色图尺寸:", color.shape[:2])
-    # print("工作空间尺寸:", workspace_mask.shape)
-
-    # 构造相机内参矩阵
-    height = color.shape[0]
-    width = color.shape[1]
-    fovy = np.pi / 4  # 定义的仿真相机
-    focal = height / (2.0 * np.tan(fovy / 2.0))  # 焦距计算（基于垂直视场角fovy和高度height）
-    c_x = width / 2.0  # 水平中心
-    c_y = height / 2.0  # 垂直中心
-    intrinsic = np.array([
-        [focal, 0.0, c_x],
-        [0.0, focal, c_y],
-        [0.0, 0.0, 1.0]
-    ])
-    factor_depth = 1.0  # 深度因子，根据实际数据调整
-
-    # 利用深度图生成点云 (H,W,3) 并保留组织结构
-    camera = CameraInfo(width, height, intrinsic[0][0], intrinsic[1][1], intrinsic[0][2], intrinsic[1][2], factor_depth)
-    cloud = create_point_cloud_from_depth_image(depth, camera, organized=True)
-
-    # mask = depth < 2.0
-    mask = (workspace_mask > 0) & (depth < 2.0)
-    cloud_masked = cloud[mask]
-    color_masked = color[mask]
-    # print(f"mask过滤后的点云数量 (color_masked): {len(color_masked)}") # 在采样前打印原始过滤后的点数
-
-    NUM_POINT = 3000  # 10000或5000
-    # 如果点数足够，随机采样NUM_POINT个点（不重复）
-    if len(cloud_masked) >= NUM_POINT:
-        idxs = np.random.choice(len(cloud_masked), NUM_POINT, replace=False)
-    # 如果点数不足，先保留所有点，再随机重复补足NUM_POINT个点
-    else:
-        idxs1 = np.arange(len(cloud_masked))
-        idxs2 = np.random.choice(len(cloud_masked), NUM_POINT - len(cloud_masked), replace=True)
-        idxs = np.concatenate([idxs1, idxs2], axis=0)
-
-    cloud_sampled = cloud_masked[idxs]
-    color_sampled = color_masked[idxs]  # 提取点云和颜色
-
-    cloud_o3d = o3d.geometry.PointCloud()
-    cloud_o3d.points = o3d.utility.Vector3dVector(cloud_masked.astype(np.float32))
-    cloud_o3d.colors = o3d.utility.Vector3dVector(color_masked.astype(np.float32))
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    cloud_sampled = torch.from_numpy(cloud_sampled[np.newaxis].astype(np.float32)).to(device)
-    # end_points = {'point_clouds': cloud_sampled}
-
-    end_points = dict()
-    end_points['point_clouds'] = cloud_sampled
-    end_points['cloud_colors'] = color_sampled
-
-    return end_points, cloud_o3d
+_cfg = load_config('sim_piper.yaml')
+_cam_cfg = _cfg['camera']
+SIM_CAMERA = build_sim_camera(_cam_cfg['width'], _cam_cfg['height'], _cam_cfg['fovy'], _cam_cfg.get('scale', 1.0))
+_gn_cfg = _cfg['graspnet']
 # =================== 获取抓取预测 ====================
 def generate_grasps(end_points, cloud, visual=False):
     """
@@ -129,18 +42,7 @@ def generate_grasps(end_points, cloud, visual=False):
     5. 对抓取预测进行垂直角度筛选
     """
     # 1. 加载网络
-    net = GraspNet(input_feature_dim=0,
-                   num_view=300,
-                   num_angle=12,
-                   num_depth=4,
-                   cylinder_radius=0.05,
-                   hmin=-0.02,
-                   hmax_list=[0.01, 0.02, 0.03, 0.04],
-                   is_training=False)
-    net.to(torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
-    checkpoint = torch.load('./logs/log_rs/checkpoint-rs.tar') # checkpoint_path
-    net.load_state_dict(checkpoint['model_state_dict'])
-    net.eval()
+    net = load_graspnet(_gn_cfg['checkpoint'])
     # 2. 前向推理
     with torch.no_grad():
         end_points = net(end_points)
@@ -299,7 +201,10 @@ if __name__ == '__main__':
         # 2. SAM分割图像
         mask_img_path = segment_image(color_img_path)
         # 3. 获取物体的点云数据
-        end_points, cloud_o3d = get_and_process_data(color_img_path, depth_img_path, mask_img_path)
+        end_points, cloud_o3d = get_and_process_data(
+            color_img_path, depth_img_path, mask_img_path,
+            SIM_CAMERA, _gn_cfg['num_points'], _cam_cfg.get('depth_trunc', 2.0)
+        )
         # 4. 获取抓取点对应的夹爪姿态
         gg = generate_grasps(end_points, cloud_o3d, False) # True or False
         if gg is None:

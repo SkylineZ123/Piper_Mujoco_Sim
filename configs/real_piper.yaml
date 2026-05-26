@@ -1,0 +1,23 @@
+# Configuration for real Piper arm with Intel RealSense D435i
+camera:
+  width: 640
+  height: 480
+  fx: 386.110107421875
+  fy: 386.110107421875
+  ppx: 321.100341796875
+  ppy: 243.82957458496094
+  scale: 1000.0             # mm -> m
+
+graspnet:
+  checkpoint: weights/logs/log_rs/checkpoint-rs.tar
+  num_points: 10000
+  collision_thresh: 0.01
+  voxel_size: 0.01
+
+# Directories for saving/loading captured frames
+# Override via DATA_DIR environment variable or change paths below
+image_dirs:
+  rgb: data/image/rgb
+  depth: data/image/depth
+  depth_map: data/image/depth_map
+  mask: data/image/mask

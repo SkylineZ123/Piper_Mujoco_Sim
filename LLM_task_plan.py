@@ -16,15 +16,15 @@ import open3d as o3d
 from manipulator_grasp.real import piper_grasp_real
 from PIL import Image
 import spatialmath as sm
+from dotenv import load_dotenv
 
 #sim mujoco
 from manipulator_grasp.env import piper_grasp_env
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'models'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'dataset'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'utils'))
-sys.path.append(os.path.join(ROOT_DIR, 'manipulator_grasp'))
+from utils.path_setup import setup_graspnet_path
+from utils.config import load_config
+
+setup_graspnet_path()
 from graspnet import GraspNet, pred_decode
 from graspnet_dataset import GraspNetDataset
 from collision_detector import ModelFreeCollisionDetector
@@ -32,14 +32,23 @@ from data_utils import CameraInfo, create_point_cloud_from_depth_image
 import cv_process
 from manipulator_grasp.arm.motion_planning import *
 
-depth_color_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/depth_map'
-depth_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/depth'
-rgb_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/rgb'
-mask_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/mask'
-qwen_api_key = 'sk-9f37c8f2136d4ca1ab0b1a9e65534f43'
+load_dotenv()
+
+_real_cfg = load_config('real_piper.yaml')
+_data_root = os.environ.get('DATA_DIR', 'data')
+_img_dirs = _real_cfg.get('image_dirs', {})
+depth_color_dir = os.path.join(_data_root, _img_dirs.get('depth_map', 'image/depth_map'))
+depth_dir = os.path.join(_data_root, _img_dirs.get('depth', 'image/depth'))
+rgb_dir = os.path.join(_data_root, _img_dirs.get('rgb', 'image/rgb'))
+mask_dir = os.path.join(_data_root, _img_dirs.get('mask', 'image/mask'))
+
+qwen_api_key = os.environ.get('DASHSCOPE_API_KEY')
 qwen_api_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-deepseek_api_key = 'sk-baf2efdae6b742ed99939a6cd4c80671'
+deepseek_api_key = os.environ.get('DEEPSEEK_API_KEY')
 deepseek_api_url = 'https://api.deepseek.com'
+
+if not qwen_api_key:
+    raise EnvironmentError("DASHSCOPE_API_KEY is not set. Copy .env.example to .env and fill in your key.")
 
 
 # COLLISION_THRESH = 0.01
@@ -288,7 +297,7 @@ class SubTaskExecutor:
             self.mask_obj = None
         # 6) 保存 mask
         if self.mask_obj is not None and save_mask:
-            cv2.imwrite(f'/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/mask/dino_sam{self.maskcnt}.jpg',
+            cv2.imwrite(os.path.join(mask_dir, f'dino_sam{self.maskcnt}.jpg'),
                         self.mask_obj, [cv2.IMWRITE_PNG_BILEVEL, 1])
             self.maskcnt += 1
 

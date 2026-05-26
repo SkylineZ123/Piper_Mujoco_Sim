@@ -24,7 +24,8 @@ sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'models'))
 sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'dataset'))
 sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'manipulator_grasp'))
-parent_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/Kinova7DoF-MuJoCo'
+_REAL_DIR = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(_REAL_DIR, '..', 'assets')
 class IKSolver:
     def __init__(self, urdf_path: str):
         self.model = pin.buildModelFromUrdf(urdf_path)
@@ -228,7 +229,7 @@ class IKOptimizer:
 
 class PiperGraspReal:
     def __init__(self):
-        urdf_path = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/manipulator_grasp/assets/agilex_piper/piper_description/urdf/piper_description.urdf'
+        urdf_path = os.path.join(_REAL_DIR, '..', 'assets', 'agilex_piper', 'piper_description', 'urdf', 'piper_description.urdf')
         self.ik_solver = IKSolver(urdf_path)
         self.piper_intference=piper_sdk.C_PiperInterface(
             can_name='can0',

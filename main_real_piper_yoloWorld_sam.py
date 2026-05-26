@@ -9,105 +9,32 @@ import copy
 from graspnetAPI import GraspGroup
 import open3d as o3d
 from manipulator_grasp.real import piper_grasp_real
-from PIL import Image
 import spatialmath as sm
 
-ROOT_DIR =os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'models'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'dataset'))
-sys.path.append(os.path.join(ROOT_DIR, 'graspnet-baseline', 'utils'))
-sys.path.append(os.path.join(ROOT_DIR, 'manipulator_grasp'))
+from utils.path_setup import setup_graspnet_path
+from utils.config import load_config
+from utils.data_loader import get_and_process_data, build_real_camera
+from utils.graspnet_runner import load_graspnet
+
+setup_graspnet_path()
 from graspnet import GraspNet, pred_decode
-from graspnet_dataset import GraspNetDataset
 from collision_detector import ModelFreeCollisionDetector
-from data_utils import CameraInfo, create_point_cloud_from_depth_image
 from cv_process import segment_image
 from manipulator_grasp.arm.motion_planning import *
-depth_color_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/depth_map'
-depth_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/depth'
-rgb_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/rgb'
-mask_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/doc/image/mask'
-# 相机内参（使用深度相机参数生成点云，根据实际相机修改）
-DEPTH_INTR = {
-    "ppx": 321.100341796875,  # cx
-    "ppy": 243.82957458496094,  # cy
-    "fx": 386.110107421875,  # fx
-    "fy": 386.110107421875  # fy
-}
-DEPTH_FACTOR = 1000.0  # 深度因子，根据实际数据调整
-NUM_POINT = 10000
-COLLISION_THRESH = 0.01
-VOXEL_SIZE = 0.01
-# ================= 数据处理并生成输入 ====================
-def get_and_process_data(color_path, depth_path, mask_path):
-    """
-    根据给定的 RGB 图、深度图、掩码图（可以是 文件路径 或 NumPy 数组），生成输入点云及其它必要数据
-    """
 
-    # 1. 加载 color（可能是路径，也可能是数组）
-    if isinstance(color_path, str):
-        color = np.array(Image.open(color_path), dtype=np.float32) / 255.0
-    elif isinstance(color_path, np.ndarray):
-        color = color_path.astype(np.float32)
-        color = color[..., [2, 1, 0]]
-        color /= 255.0
-    else:
-        raise TypeError("color_path 既不是字符串路径也不是 NumPy 数组！")
+_cfg = load_config('real_piper.yaml')
+_cam_cfg = _cfg['camera']
+REAL_CAMERA = build_real_camera(_cam_cfg)
+_gn_cfg = _cfg['graspnet']
+COLLISION_THRESH = _gn_cfg['collision_thresh']
+VOXEL_SIZE = _gn_cfg['voxel_size']
 
-    # 2. 加载 depth（可能是路径，也可能是数组）
-    if isinstance(depth_path, str):
-        depth_img = Image.open(depth_path)
-        depth = np.array(depth_img)
-    elif isinstance(depth_path, np.ndarray):
-        depth = depth_path
-    else:
-        raise TypeError("depth_path 既不是字符串路径也不是 NumPy 数组！")
-
-    # 3. 加载 mask（可能是路径，也可能是数组）
-    if isinstance(mask_path, str):
-        workspace_mask = np.array(Image.open(mask_path))
-    elif isinstance(mask_path, np.ndarray):
-        workspace_mask = mask_path
-    else:
-        raise TypeError("mask_path 既不是字符串路径也不是 NumPy 数组！")
-
-    print("\n=== 尺寸验证 ===")
-    print("深度图尺寸:", depth.shape[::-1])
-    print("颜色图尺寸:", color.shape[:2][::-1])
-    print("工作空间尺寸:", workspace_mask.shape[::-1])
-    print("相机参数预设尺寸:", (640, 480))
-
-    camera = CameraInfo(
-        width=640,
-        height=480,
-        fx=DEPTH_INTR['fx'],
-        fy=DEPTH_INTR['fy'],
-        cx=DEPTH_INTR['ppx'],
-        cy=DEPTH_INTR['ppy'],
-        scale=DEPTH_FACTOR
-    )
-    # 利用深度图生成点云 (H,W,3) 并保留组织结构
-    cloud = create_point_cloud_from_depth_image(depth, camera, organized=True)
-
-    mask = (workspace_mask > 0) & (depth > 0)
-    cloud_masked = cloud[mask]
-    color_masked = color[mask]
-
-    if len(cloud_masked) >= NUM_POINT:
-        idxs = np.random.choice(len(cloud_masked), NUM_POINT, replace=False)
-    else:
-        idxs1 = np.arange(len(cloud_masked))
-        idxs2 = np.random.choice(len(cloud_masked), NUM_POINT - len(cloud_masked), replace=True)
-        idxs = np.concatenate([idxs1, idxs2], axis=0)
-    cloud_sampled = cloud_masked[idxs]
-    cloud_o3d = o3d.geometry.PointCloud()
-    cloud_o3d.points = o3d.utility.Vector3dVector(cloud_masked.astype(np.float32))
-    cloud_o3d.colors = o3d.utility.Vector3dVector(color_masked.astype(np.float32))
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    cloud_sampled = torch.from_numpy(cloud_sampled[np.newaxis].astype(np.float32)).to(device)
-    end_points = {'point_clouds': cloud_sampled}
-    return end_points, cloud_o3d
+_data_root = os.environ.get('DATA_DIR', 'data')
+_img_dirs = _cfg.get('image_dirs', {})
+depth_color_dir = os.path.join(_data_root, _img_dirs.get('depth_map', 'image/depth_map'))
+depth_dir = os.path.join(_data_root, _img_dirs.get('depth', 'image/depth'))
+rgb_dir = os.path.join(_data_root, _img_dirs.get('rgb', 'image/rgb'))
+mask_dir = os.path.join(_data_root, _img_dirs.get('mask', 'image/mask'))
 
 # ==================== 碰撞检测 ====================
 def collision_detection(gg, cloud_points):
@@ -138,20 +65,12 @@ def run_grasp_inference(color_path, depth_path, mask_path):
     7. 返回前 50 个抓取中得分最高的抓取
     """
     # 1. 加载网络
-    net = GraspNet(input_feature_dim=0,
-                   num_view=300,
-                   num_angle=12,
-                   num_depth=4,
-                   cylinder_radius=0.05,
-                   hmin=-0.02,
-                   hmax_list=[0.01, 0.02, 0.03, 0.04],
-                   is_training=False)
-    net.to(torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
-    checkpoint = torch.load('weights/logs/log_rs/checkpoint-rs.tar') # checkpoint_path
-    net.load_state_dict(checkpoint['model_state_dict'])
-    net.eval()
+    net = load_graspnet(_gn_cfg['checkpoint'])
     # 2. 处理数据
-    end_points, cloud_o3d = get_and_process_data(color_path, depth_path, mask_path)
+    end_points, cloud_o3d = get_and_process_data(
+        color_path, depth_path, mask_path,
+        REAL_CAMERA, _gn_cfg['num_points'], bgr_to_rgb=True
+    )
     # 3. 前向推理
     with torch.no_grad():
         end_points = net(end_points)

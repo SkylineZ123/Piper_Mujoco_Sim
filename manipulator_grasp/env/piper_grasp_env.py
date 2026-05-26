@@ -28,7 +28,8 @@ sys.path.append(os.path.join(ROOT_DIR, 'manipulator_grasp'))
 # ---------------
 # 逆运动学求解器（使用 Pinocchio）
 # ------------------------------
-parent_dir = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/Kinova7DoF-MuJoCo'
+_ENV_DIR = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(_ENV_DIR, '..', 'assets')
 class IKSolver:
     def __init__(self, urdf_path: str):
         self.model = pin.buildModelFromUrdf(urdf_path)
@@ -259,8 +260,8 @@ class PiperGraspEnv:
 
         # mj_filename = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/Kinova7DoF-MuJoCo/piper_description/mujoco_model/scene_piper.xml'
         # urdf_path = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/Kinova7DoF-MuJoCo/piper_description/urdf/piper_description.urdf'
-        mj_filename = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/manipulator_grasp/assets/scenes/scene_grasp.xml'
-        urdf_path = '/home/zzq/Desktop/jichuan/YOLO_World-SAM-GraspNet/manipulator_grasp/assets/agilex_piper/piper_description/urdf/piper_description.urdf'
+        mj_filename = os.path.join(_ENV_DIR, '..', 'assets', 'scenes', 'scene_grasp.xml')
+        urdf_path = os.path.join(_ENV_DIR, '..', 'assets', 'agilex_piper', 'piper_description', 'urdf', 'piper_description.urdf')
         # self.ik_solver = IKOptimizer(urdf_path, ee_frame_name='grasp_link')
         self.ik_solver = IKSolver(urdf_path)
         self.mj_model = mujoco.MjModel.from_xml_path(mj_filename)

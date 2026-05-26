@@ -1,0 +1,13 @@
+# Configuration for UR5 arm MuJoCo simulation
+camera:
+  width: 640
+  height: 640
+  fovy: 0.7853981633974483  # pi/4 radians
+  scale: 1.0
+
+graspnet:
+  checkpoint: logs/log_rs/checkpoint-rs.tar
+  num_points: 3000
+  collision_thresh: 0.01
+  voxel_size: 0.01
+  depth_trunc: 2.0

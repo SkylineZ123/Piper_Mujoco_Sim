@@ -1,0 +1,12 @@
+# Configuration for CV perception (GroundingDINO + SAM)
+# Paths are relative to the repository root, or set WEIGHTS_DIR env var to override.
+weights_dir: weights
+
+models:
+  groundingdino_config: weights/groundingdino_swint_ogc.py
+  groundingdino_checkpoint: weights/groundingdino_swint_ogc.pth
+  sam_checkpoint: weights/sam_b.pt
+
+detection:
+  box_threshold: 0.25
+  text_threshold: 0.25
