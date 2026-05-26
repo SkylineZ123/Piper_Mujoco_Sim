@@ -13,8 +13,6 @@ Pillow
 ultralytics           # YOLO-World + SAM via Ultralytics
 groundingdino-py      # GroundingDINO text-prompted detection
 
-# GraspNet (also install from submodule, see README)
-graspnetAPI
 
 # Robot kinematics
 pinocchio

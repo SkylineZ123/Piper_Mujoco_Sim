@@ -138,3 +138,13 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 /logs
+
+# Project-specific
+.env
+MUJOCO_LOG.TXT
+weights/*.tar
+weights/*.pt
+weights/*.pth
+weights/*.bin
+data/
+=2.12
