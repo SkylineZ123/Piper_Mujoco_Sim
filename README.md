@@ -4,30 +4,7 @@
 ## Overview / 项目简介
 
 
-本仓库实现了一套完整的机械臂抓取流水线，支持仿真与真机两种模式：
-
-| 层级 / Layer | 技术 / Technology |
-|---|---|
-| 目标检测 / Object Detection | GroundingDINO (text-prompted) |
-| 实例分割 / Segmentation | Ultralytics SAM (Segment Anything) |
-| 6DoF 抓取位姿 / Grasp Pose | GraspNet-Baseline (CVPR 2020) |
-| 机器人仿真 / Simulation | MuJoCo ≥ 2.3.4 (Piper / UR5) |
-| 真机控制 / Real Robot | Agilex Piper + Intel RealSense D435i |
-| 任务规划 / Task Planning | LLM (Qwen/DeepSeek) via OpenAI-compatible API |
-| 运动规划 / Motion Planning | Pinocchio IK + 关节插值 |
-
----
-
-## Features / 功能特性
-
-- **Simulation (Piper & UR5)**: MuJoCo scenes with fruit/block objects; automatic grasp execution with joint trajectory interpolation.  
-  **仿真（Piper / UR5）**：包含水果/方块的 MuJoCo 场景，自动完成抓取轨迹规划与执行。
-- **Real deployment**: Intel RealSense D435i depth capture → SAM segmentation → GraspNet 6DoF pose → Agilex Piper execution.  
-  **真机部署**：D435i 深度相机采集 → SAM 分割 → GraspNet 6DoF 抓取位姿 → Piper 执行。
-- **LLM-driven task planning**: Natural-language commands decomposed into primitive robot actions.  
-  **LLM 驱动任务规划**：自然语言指令分解为机器人原语动作。
-- **Centralised config**: All hyperparameters (camera intrinsics, GraspNet checkpoint path, sampling counts) live in `configs/*.yaml`.  
-  **统一配置管理**：相机内参、权重路径、采样超参等均集中于 `configs/*.yaml`。
+本仓库为“基于多核 AMP 通信的人机交互机械臂系统”这个作品的核心代码：
 
 ---
 
