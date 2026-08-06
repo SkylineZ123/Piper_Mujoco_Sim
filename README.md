@@ -3,7 +3,6 @@
 
 ## Overview / 项目简介
 
-This repository implements a full robotic grasping pipeline for both simulation and real deployment:
 
 本仓库实现了一套完整的机械臂抓取流水线，支持仿真与真机两种模式：
 
