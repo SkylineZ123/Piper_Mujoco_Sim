@@ -1,9 +1,4 @@
 # Piper\_Mujoco\_Sim
-
-> **Robotic Grasping with MuJoCo + GraspNet + GroundingDINO/SAM + LLM Task Planning**
->
-> **基于 MuJoCo 的机械臂抓取仿真与真机部署 — GraspNet + GroundingDINO/SAM + LLM 任务规划**
-
 ---
 
 ## Overview / 项目简介
