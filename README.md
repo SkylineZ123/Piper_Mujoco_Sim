@@ -60,18 +60,13 @@ Piper_Mujoco_Sim/
 | Python | 3.10 |
 | MuJoCo | ≥ 2.3.4 |
 
-### 2. Clone with Submodules / 克隆仓库（含子模块）
+### 2. Clone with Submodules / 克隆仓库
 
 ```bash
-git clone --recursive https://github.com/<your-repo>/Piper_Mujoco_Sim.git
+git clone https://github.com/SkylineZ123/Piper_Mujoco_Sim.git
 cd Piper_Mujoco_Sim
 ```
 
-If you forgot `--recursive` / 如果忘记加 `--recursive`：
-
-```bash
-git submodule update --init --recursive
-```
 
 ### 3. Create Conda Environment / 创建 Conda 环境
 
